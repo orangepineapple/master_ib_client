@@ -1,0 +1,15 @@
+services:
+  morning_momentum:
+    container_name: bottom_flip
+    build:
+        context:  .
+        dockerfile: Dockerfile
+        secrets:
+          - gh_token
+    network_mode: host
+    environment:
+        TZ : America/New_York  # Set the timezone
+
+secrets:
+  gh_token:
+    file: ./gh_token.txt  # The local file where your PAT is stored
