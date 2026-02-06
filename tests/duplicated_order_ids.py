@@ -10,7 +10,7 @@ from trading_util.order_util import OrderLog
 from ibapi.order import Order
 from datetime import datetime
 from threading import Lock
-from order_service.ib.master_order_client import OrderMaster
+from order_service.ib.order_client import OrderMaster
 
 client = OrderMaster("192.168.2.60", 4002, 1 , None)
 client2 = OrderMaster("192.168.2.60", 4002, 2 , None)

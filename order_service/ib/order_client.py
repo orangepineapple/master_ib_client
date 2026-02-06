@@ -7,15 +7,26 @@ from time import sleep
 from decimal import Decimal
 
 from trading_util.alert_util import send_notif 
-from trading_util.order_util import OrderLog
 from ibapi.order import Order
 from datetime import datetime
 from zmq import SyncSocket
+
+import trading_util.network.message_pb2 as msg
 
 import logging
 
 logger = logging.getLogger(__name__)
 
+from dataclasses import dataclass, field
+from typing import Optional
+
+@dataclass
+class OrderInfo:
+    # Basic fields with type hints
+    sender : bytes 
+    ticker: str
+    orderType : str
+    orderSide : str
 
 class OrderMaster(EWrapper, EClient):
     def __init__(self, addr, port, client_id, order_socket : SyncSocket):
@@ -27,15 +38,10 @@ class OrderMaster(EWrapper, EClient):
         
         self.lock = Lock() 
         
-        self.next_id = None
-        
-        # Mapping: {reqId: "SYMBOL"}
-        self.tickers = {}
+        self.current_order_id = None
         
         # ZMQ sockets to respond on
         self.order_socket = order_socket
-
-        self.watchlist = []
 
         # Utility + Connectivity (Shared via Threads)
         self.failed_to_connect = False
@@ -47,11 +53,7 @@ class OrderMaster(EWrapper, EClient):
         self.data_arrived = []
 
         # Order Placement (Shared via Threads)
-        self.order_ids = []
-        self.current_order_id = None
-        self.order_information : dict[int, OrderLog] = {}
-        self.failed_orders = []
-        self.filled_orders = set()
+        self.order_information : dict[int, OrderInfo] = {}
 
         # Launch the client thread
         thread = Thread(target=self.run)
@@ -62,11 +64,10 @@ class OrderMaster(EWrapper, EClient):
         self.reqIds(1)
 
 
-    def send_order_single_order(self, ticker : str, quantity : int, sent_by : int, action : str, orderType : str):
+    def send_order_single_order(self, ticker : str, quantity : int, action : str, orderType : str, sender : bytes):
         '''
         Sends a single order- BUY/SELL, MARKET/LIMIT
-        '''       
-
+        '''     
         while True: 
             with self.lock:
                 if self.current_order_id is not None:
@@ -90,50 +91,64 @@ class OrderMaster(EWrapper, EClient):
         # Increment after sending Orders
         self.current_order_id += 1
 
-
+        # Save Sender to respond to
         # Concurrent Access of order information
         with self.lock:
-            self.order_information[order.orderId] = OrderLog(
-                quantity,
+            self.order_information[order.orderId] = OrderInfo(
+                sender,
                 ticker,
-                "buy",
+                action,
+                orderType,  
             )
 
         self.placeOrder(order.orderId, contract, order)
         print("Order sent", ticker, "buy", quantity)
 
 
-    def send_braket_order(self):
+    def send_bracket_order(self, ticker : str, quantity : int, action : str, sender : bytes):
         # Sends a bracket order
         pass
 
     def adjust_stoploss(self, order_id):
         # Adjusts the stoploss of provided order id
         pass
-        
 
-    
 
     ### BUILT IN CALLBACKS
+    def orderStatus(self, orderId: int, status: str, filled: Decimal, remaining: Decimal, avgFillPrice: float, permId: int, parentId: int, lastFillPrice: float, clientId: int, whyHeld: str, mktCapPrice: float):
+        # when remaining is 0, then avgFillPrice contains the price we actaully finished the order add
+        print(status)
+        if status == "Open":
+            pass
+
+        if remaining == 0 and status == "Filled": 
+            with self.lock:
+                order_info = self.order_information.pop(orderId)
+                
+            resp = msg.TradeUpdate(
+                order_id=orderId,
+                ticker=order_info.ticker,
+                status=msg.OrderStatus.FILLED,
+                order_type=order_info.orderType,
+                action=order_info.orderSide,
+                total_qty=int(filled),
+                filled_qty=int(filled),
+                remaining_qty=int(remaining),
+                avg_fill_price=avgFillPrice,
+                last_fill_price=lastFillPrice,
+                timestamp=datetime.now().isoformat()
+            )
+
+            self.order_socket.send_multipart([order_info.sender, b"", resp.SerializeToString()])
+
+            print("Executed", self.order_information[orderId].ticker, "amount: ", filled, "filled at :", avgFillPrice)
+    
     def nextValidId(self, orderId: int):
         '''
         Gets the orderIds and places them into a list, list is cleared after orders are send
         '''
-        self.current_order_id = orderId
+        self.current_order_id = orderId  
     
-    def orderStatus(self, orderId: int, status: str, filled: Decimal, remaining: Decimal, avgFillPrice: float, permId: int, parentId: int, lastFillPrice: float, clientId: int, whyHeld: str, mktCapPrice: float):
-        # when remaining is 0, then avgFillPrice contains the price we actaully finished the order add
-        if remaining == 0 and status == "Filled": 
-            with self.lock:
-                #TODO remove from order table - trackings ticker, and who sent it
-                pass
-            
-            #TODO order oject and send status
-            self.order_socket.send("TEMP- SEND ORDER STATUS")
-
-
-            print("Executed", self.order_information[orderId].ticker, "amount: ", self.order_information[orderId].quantity , "filled at :", avgFillPrice)
-        
     ### ERROR HANDLING ###
     def error(self, reqId: int, errorCode: int, errorString: str, advancedOrderRejectJson=""):
         # client not connected error
@@ -143,16 +158,29 @@ class OrderMaster(EWrapper, EClient):
                 logger.error("Client failed to connect")
             with self.lock:     
                 self.failed_to_connect = True
-        # Market Data might not be available to some of the sercurities
-        elif errorCode == 10089: 
-            with self.lock:           
-                self.ticker_unavailable.add(self.watchlist[reqId])
-                self.data_arrived[reqId] = 2
         # contract not found
-        elif errorCode == 200: 
-            print("contract not found")
+        elif errorCode == 201: 
+            # Order Rejected
             with self.lock:
-                self.failed_orders.append(reqId)
+                order_info = self.order_information.pop(reqId)
+
+            resp = msg.TradeUpdate(
+                order_id=reqId,
+                ticker=order_info.ticker,
+                status=msg.OrderStatus.ERROR,
+                order_type=order_info.orderType,
+                action=order_info.orderSide,
+                total_qty=0,
+                filled_qty=0,
+                remaining_qty=0,
+                avg_fill_price=0,
+                last_fill_price=0,
+                timestamp=datetime.now().isoformat(),
+                error_message=errorString
+            )
+
+            self.order_socket.send_multipart([order_info.sender, b"", resp.SerializeToString()])
+
         # Server Error
         elif errorCode == 321:
             if not self.server_error:
