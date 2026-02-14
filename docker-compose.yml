@@ -1,8 +1,19 @@
 services:
-  morning_momentum:
-    container_name: bottom_flip
+  Order_master:
+    container_name: order_master
     build:
-        context:  .
+        context:  /order_service
+        dockerfile: Dockerfile
+        secrets:
+          - gh_token
+    network_mode: host
+    environment:
+        TZ : America/New_York  # Set the timezone
+        
+  Market_data_master:
+    container_name: mkt_data_master
+    build:
+        context:  /market_data_service
         dockerfile: Dockerfile
         secrets:
           - gh_token

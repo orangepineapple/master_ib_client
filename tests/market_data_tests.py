@@ -84,6 +84,3 @@ def TestInvalidTIcker():
     ack = msg.SubscriptionAck()
     ack.ParseFromString(reply)
     print(f"Master Client says: {ack}")
-
-
-def TestTwoStreams():

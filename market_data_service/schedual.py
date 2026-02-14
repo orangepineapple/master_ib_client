@@ -6,7 +6,7 @@ import sys
 from config.constants import HOST, CLIENT_NUM
 from trading_util.alert_util import send_notif
 from trading_util.network import gateway_check
-from main import start_order_service
+from main import start_market_data_service
 
 import logging
 
@@ -42,11 +42,11 @@ scheduler.add_job(
     day_of_week='mon-fri', 
     hour=12, 
     minute=0, 
-    kwargs={"func" : start_order_service, 
-            "name" : "IB Order Service Start",
+    kwargs={"func" : start_market_data_service, 
+            "name" : "IB Market Data Service Start",
             "host" : HOST,                  # Passing these because ping lives in shared util lib
             "client_num" : CLIENT_NUM},
-    id="order service start"
+    id="market data service start"
 )
 
 # Graceful shutdown

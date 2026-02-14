@@ -19,8 +19,7 @@ def start_market_data_service():
     client = DataMaster(HOST, 4002, CLIENT_NUM , mkt_data_socket, new_subscription_socket)
 
     client.subscribe_to_market_data()
-
-    # Shutdown- TODO Save subscriber list to DB
+    # Clients are in charge of re-subscribing the next day
 
     client.disconnect()
     mkt_data_socket.close()

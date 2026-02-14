@@ -1,20 +1,16 @@
-# Handles all orders going to IB
-
-
 from datetime import time, datetime
 import zmq
-from config.constants import HOST, CLIENT_NUM
 from order_service.ib.order_client import OrderMaster
 from trading_util.network import message_pb2 as msg
 from trading_util.network.conversion import PROTO_TO_IB_TYPE
 
-def start_order_service():
+def start_order_service(host, client_num):
     context = zmq.Context()
     order_socket = context.socket(zmq.ROUTER)
     order_socket.bind("tcp://*:5555")
     order_socket.setsockopt(zmq.RCVTIMEO, 10000)
 
-    client = OrderMaster(HOST, 4002, CLIENT_NUM , order_socket)
+    client = OrderMaster(host, 4002, client_num , order_socket)
 
     in_progress_orders = {} # if no one is subscribed anymore cancel this
 
