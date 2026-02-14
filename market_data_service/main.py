@@ -1,11 +1,7 @@
 # Handles mkt data coming from IB
-from threading import Thread
-from datetime import time, datetime
 import zmq
 from config.constants import HOST, CLIENT_NUM
 from ib.data_client import DataMaster
-from trading_util.network import message_pb2 as msg
-from time import sleep
 
 def start_market_data_service():
     context = zmq.Context()
