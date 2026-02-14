@@ -21,5 +21,3 @@ def start_market_data_service():
     mkt_data_socket.close()
     new_subscription_socket.close()
     context.term()
-
-start_market_data_service()
