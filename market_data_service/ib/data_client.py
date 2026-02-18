@@ -42,9 +42,7 @@ class DataMaster(EWrapper, EClient):
     
 
     def subscribe_to_market_data(self):
-
         while True:
-            print("Time Check")
             now = datetime.now().time()
             if now > time(16, 0): # 4:00 PM
                 return
@@ -76,7 +74,7 @@ class DataMaster(EWrapper, EClient):
                         self.TICKER_TO_REQ_ID[mkt_data_sub.ticker] = self.market_req_id
                         self.subscription_count[self.market_req_id] = {sender}
                         self.market_req_id += 1
-                        
+
                 else: # Canceling a sub
                     reqId = self.TICKER_TO_REQ_ID[mkt_data_sub.ticker]
                     self.subscription_count[reqId].discard(sender)

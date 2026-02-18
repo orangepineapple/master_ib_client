@@ -46,7 +46,3 @@ def start_order_service():
     client.disconnect()
     order_socket.close()
     context.term()
-
-
-# from config.constants import HOST, CLIENT_NUM
-# start_order_service(HOST, CLIENT_NUM)

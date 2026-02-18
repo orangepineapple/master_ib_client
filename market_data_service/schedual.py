@@ -4,7 +4,6 @@ import signal
 import sys
 from datetime import datetime, time
 
-from config.constants import HOST, CLIENT_NUM
 from main import start_market_data_service
 from trading_util.alert_util import runner
 
@@ -41,13 +40,13 @@ scheduler.add_job(
 # Graceful shutdown
 def shutdown(signum, frame):
     logger.info("Shutting down...")
-    scheduler.shutdown()
+    if scheduler.running:
+        scheduler.shutdown()
     sys.exit(0)
 
 signal.signal(signal.SIGINT, shutdown)
 signal.signal(signal.SIGTERM, shutdown)
 
 if __name__ == "__main__":
-    logger.info("Starting BlockingScheduler...")
     run_catchup()
     scheduler.start()

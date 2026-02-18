@@ -6,7 +6,7 @@ from ib.data_client import DataMaster
 def start_market_data_service():
     print("MARKET DATA SERVICE RUNNING")
     context = zmq.Context()
-    new_subscription_socket = context.socket(zmq.ROUTER) #TODO USE DEALER ROUTER
+    new_subscription_socket = context.socket(zmq.ROUTER)
     new_subscription_socket.bind("tcp://*:5556")
     new_subscription_socket.setsockopt(zmq.RCVTIMEO, 10000)
 
