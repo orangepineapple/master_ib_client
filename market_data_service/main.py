@@ -4,6 +4,7 @@ from config.constants import HOST, CLIENT_NUM
 from ib.data_client import DataMaster
 
 def start_market_data_service():
+    print("MARKET DATA SERVICE RUNNING")
     context = zmq.Context()
     new_subscription_socket = context.socket(zmq.ROUTER) #TODO USE DEALER ROUTER
     new_subscription_socket.bind("tcp://*:5556")
@@ -21,6 +22,3 @@ def start_market_data_service():
     mkt_data_socket.close()
     new_subscription_socket.close()
     context.term()
-
-
-start_market_data_service()

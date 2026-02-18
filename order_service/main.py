@@ -5,6 +5,7 @@ from trading_util.network import message_pb2 as msg
 from config.constants import HOST, CLIENT_NUM
 
 def start_order_service():
+    print("ORDER SERVICE RUNNING")
     context = zmq.Context()
     order_socket = context.socket(zmq.ROUTER)
     order_socket.bind("tcp://*:5555")
