@@ -2,7 +2,7 @@ services:
   order_master:
     container_name: order_master
     build:
-        context:  /order_service
+        context:  ./order_service
         dockerfile: Dockerfile
         secrets:
           - gh_token
@@ -13,7 +13,7 @@ services:
   market_data_master:
     container_name: mkt_data_master
     build:
-        context:  /market_data_service
+        context:  ./market_data_service
         dockerfile: Dockerfile
         secrets:
           - gh_token
