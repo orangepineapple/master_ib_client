@@ -22,9 +22,7 @@ scheduler.add_job(
     hour=12, 
     minute=0, 
     kwargs={"func" : start_market_data_service, 
-            "name" : "IB Market Data Service Start",
-            "host" : HOST,                  # Passing these because ping lives in shared util lib
-            "client_num" : CLIENT_NUM},
+            "name" : "IB Market Data Service"},
     id="market data service start"
 )
 

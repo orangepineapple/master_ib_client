@@ -3,7 +3,6 @@ import logging
 import signal
 import sys
 
-from config.constants import HOST, CLIENT_NUM
 from main import start_order_service
 from trading_util.alert_util import runner
 
@@ -22,9 +21,7 @@ scheduler.add_job(
     hour=12, 
     minute=0, 
     kwargs={"func" : start_order_service, 
-            "name" : "IB Order Service Start",
-            "host" : HOST,                  # Passing these because ping lives in shared util lib
-            "client_num" : CLIENT_NUM},
+            "name" : "IB Order Service"},
     id="order service start"
 )
 

@@ -2,14 +2,15 @@ from datetime import time, datetime
 import zmq
 from ib.order_client import OrderMaster
 from trading_util.network import message_pb2 as msg
+from config.constants import HOST, CLIENT_NUM
 
-def start_order_service(host, client_num):
+def start_order_service():
     context = zmq.Context()
     order_socket = context.socket(zmq.ROUTER)
     order_socket.bind("tcp://*:5555")
     order_socket.setsockopt(zmq.RCVTIMEO, 10000)
 
-    client = OrderMaster(host, 4002, client_num , order_socket)
+    client = OrderMaster(HOST, 4002, CLIENT_NUM , order_socket)
 
     in_progress_orders = {} # if no one is subscribed anymore cancel this
 
