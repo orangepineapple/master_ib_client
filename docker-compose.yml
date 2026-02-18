@@ -1,5 +1,5 @@
 services:
-  Order_master:
+  order_master:
     container_name: order_master
     build:
         context:  /order_service
@@ -10,7 +10,7 @@ services:
     environment:
         TZ : America/New_York  # Set the timezone
         
-  Market_data_master:
+  market_data_master:
     container_name: mkt_data_master
     build:
         context:  /market_data_service

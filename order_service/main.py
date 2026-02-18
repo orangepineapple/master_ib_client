@@ -1,8 +1,7 @@
 from datetime import time, datetime
 import zmq
-from order_service.ib.order_client import OrderMaster
+from ib.order_client import OrderMaster
 from trading_util.network import message_pb2 as msg
-from trading_util.network.conversion import PROTO_TO_IB_TYPE
 
 def start_order_service(host, client_num):
     context = zmq.Context()
@@ -26,19 +25,12 @@ def start_order_service(host, client_num):
 
             if order_msg.order_type == msg.OrderType.MKT or msg.OrderType.LMT:
                 client.send_order_single_order(
-                    order_msg.ticker,
-                    order_msg.qty,
-                    PROTO_TO_IB_TYPE[order_msg.order_type],
-                    PROTO_TO_IB_TYPE.get(order_msg.action, "MKT"),
+                    order_msg,
                     sender
                 )
-
-
             elif order_msg.order_type == msg.OrderType.BRKT:
                 client.send_bracket_order(
-                    order_msg.ticker,
-                    order_msg.qty,
-                    PROTO_TO_IB_TYPE[order_msg.order_type],
+                    order_msg,
                     sender
                 )
 
@@ -52,3 +44,7 @@ def start_order_service(host, client_num):
     client.disconnect()
     order_socket.close()
     context.term()
+
+
+# from config.constants import HOST, CLIENT_NUM
+# start_order_service(HOST, CLIENT_NUM)

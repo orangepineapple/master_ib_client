@@ -12,6 +12,7 @@ from datetime import datetime
 from zmq import SyncSocket
 
 import trading_util.network.message_pb2 as msg
+from trading_util.network import PROTO_TO_IB_TYPE
 
 import logging
 
@@ -25,8 +26,8 @@ class OrderInfo:
     # Basic fields with type hints
     sender : bytes 
     ticker: str
-    orderType : str
-    orderSide : str
+    orderType : msg.OrderType.ValueType
+    orderSide : msg.OrderSide.ValueType
 
 class OrderMaster(EWrapper, EClient):
     def __init__(self, addr, port, client_id, order_socket : SyncSocket):
@@ -64,7 +65,7 @@ class OrderMaster(EWrapper, EClient):
         self.reqIds(1)
 
 
-    def send_order_single_order(self, ticker : str, quantity : int, action : str, orderType : str, sender : bytes):
+    def send_order_single_order(self, order_msg : msg.TradeOrder, sender : bytes):
         '''
         Sends a single order- BUY/SELL, MARKET/LIMIT
         '''     
@@ -77,15 +78,15 @@ class OrderMaster(EWrapper, EClient):
         ## CONCURRENT EXCECUTION on orderStatus
         
         contract = Contract()
-        contract.symbol = ticker
+        contract.symbol = order_msg.ticker
         contract.secType = "STK"
         contract.currency = "USD"
         contract.exchange = "SMART"
 
         order = Order()
-        order.action = action
-        order.totalQuantity = Decimal(quantity)
-        order.orderType = orderType
+        order.action = PROTO_TO_IB_TYPE[order_msg.action]
+        order.totalQuantity = Decimal(order_msg.qty)
+        order.orderType = PROTO_TO_IB_TYPE[order_msg.order_type]
         order.transmit = True
         order.orderId = self.current_order_id
         # Increment after sending Orders
@@ -96,16 +97,16 @@ class OrderMaster(EWrapper, EClient):
         with self.lock:
             self.order_information[order.orderId] = OrderInfo(
                 sender,
-                ticker,
-                action,
-                orderType,  
+                order_msg.ticker,
+                order_msg.order_type,
+                order_msg.action,  
             )
 
         self.placeOrder(order.orderId, contract, order)
-        print("Order sent", ticker, "buy", quantity)
+        print("Order sent", order_msg.ticker, "buy", order_msg.qty)
 
 
-    def send_bracket_order(self, ticker : str, quantity : int, action : str, sender : bytes):
+    def send_bracket_order(self, order_msg : msg.TradeOrder, sender : bytes):
         # Sends a bracket order
         pass
 

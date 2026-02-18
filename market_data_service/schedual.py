@@ -4,18 +4,12 @@ import signal
 import sys
 
 from config.constants import HOST, CLIENT_NUM
-from trading_util.alert_util import send_notif
 from main import start_market_data_service
+from trading_util.alert_util import runner
 
 import logging
 
 logger = logging.getLogger(__name__)
-
-def runner(func, name, **kwargs):
-    try :
-        func(**kwargs)
-    except:
-        send_notif(f"@everyone task {name} failed to run")
 
 # Create scheduler
 scheduler = BlockingScheduler()
