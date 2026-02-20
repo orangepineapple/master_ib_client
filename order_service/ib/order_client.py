@@ -12,7 +12,7 @@ from datetime import datetime
 from zmq import SyncSocket
 
 import trading_util.network.message_pb2 as msg
-from trading_util.network import PROTO_TO_IB_TYPE
+from trading_util.network import PROTO_TO_IB_ACTION, PROTO_TO_IB_ORDERTYPE
 
 import logging
 
@@ -68,7 +68,7 @@ class OrderMaster(EWrapper, EClient):
     def send_order_single_order(self, order_msg : msg.TradeOrder, sender : bytes):
         '''
         Sends a single order- BUY/SELL, MARKET/LIMIT
-        '''     
+        '''
         while True: 
             with self.lock:
                 if self.current_order_id is not None:
@@ -84,13 +84,14 @@ class OrderMaster(EWrapper, EClient):
         contract.exchange = "SMART"
 
         order = Order()
-        order.action = PROTO_TO_IB_TYPE[order_msg.action]
+        order.action = PROTO_TO_IB_ACTION[order_msg.action]
         order.totalQuantity = Decimal(order_msg.qty)
-        order.orderType = PROTO_TO_IB_TYPE[order_msg.order_type]
+        order.orderType = PROTO_TO_IB_ORDERTYPE[order_msg.order_type]
         order.transmit = True
         order.orderId = self.current_order_id
         # Increment after sending Orders
         self.current_order_id += 1
+        print("symnbol:", contract.symbol, order.action, order.orderType)
 
         # Save Sender to respond to
         # Concurrent Access of order information
@@ -122,27 +123,29 @@ class OrderMaster(EWrapper, EClient):
         if status == "Open":
             pass
 
-        if remaining == 0 and status == "Filled": 
-            with self.lock:
-                order_info = self.order_information.pop(orderId)
-                
-            resp = msg.TradeUpdate(
-                order_id=orderId,
-                ticker=order_info.ticker,
-                status=msg.OrderStatus.FILLED,
-                order_type=order_info.orderType,
-                action=order_info.orderSide,
-                total_qty=int(filled),
-                filled_qty=int(filled),
-                remaining_qty=int(remaining),
-                avg_fill_price=avgFillPrice,
-                last_fill_price=lastFillPrice,
-                timestamp=datetime.now().isoformat()
-            )
+        if remaining == 0 and status == "Filled":  # gets called with "Filled" status multiple times
+            if orderId in self.order_information:
+                print("Executed", self.order_information[orderId].ticker, "amount: ", filled, "filled at :", avgFillPrice)
 
-            self.order_socket.send_multipart([order_info.sender, b"", resp.SerializeToString()])
+                with self.lock:
+                    order_info = self.order_information.pop(orderId)
+                    
+                resp = msg.TradeUpdate(
+                    order_id=orderId,
+                    ticker=order_info.ticker,
+                    status=msg.OrderStatus.FILLED,
+                    order_type=order_info.orderType,
+                    action=order_info.orderSide,
+                    total_qty=int(filled),
+                    filled_qty=int(filled),
+                    remaining_qty=int(remaining),
+                    avg_fill_price=avgFillPrice,
+                    last_fill_price=lastFillPrice,
+                    timestamp=datetime.now().isoformat()
+                )
 
-            print("Executed", self.order_information[orderId].ticker, "amount: ", filled, "filled at :", avgFillPrice)
+                self.order_socket.send_multipart([order_info.sender, b"", resp.SerializeToString()])
+
     
     def nextValidId(self, orderId: int):
         '''
@@ -155,8 +158,9 @@ class OrderMaster(EWrapper, EClient):
         # client not connected error
         if errorCode == 504: 
             if not self.failed_to_connect:
-                send_notif("@everyone gateway is not connected, please restart manually")
-                logger.error("Client failed to connect")
+
+                # UNEXPECTED RUNNING ERRORS ALSO HAPPEN HERE
+                send_notif("@everyone ORDER MASTER ERROR: " + errorString)
             with self.lock:     
                 self.failed_to_connect = True
         # contract not found
@@ -186,7 +190,6 @@ class OrderMaster(EWrapper, EClient):
         elif errorCode == 321:
             if not self.server_error:
                 send_notif("@everyone server error:"+ errorString) 
-                logger.error("Client in read only mode")
             with self.lock:
                 self.server_error = True
         else:
