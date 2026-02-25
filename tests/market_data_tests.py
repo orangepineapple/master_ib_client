@@ -9,7 +9,6 @@ market_data_sub.connect("tcp://127.0.0.1:5556") # Use your Master's IP
 market_data_recv = context.socket(zmq.SUB)
 market_data_recv.connect("tcp://127.0.0.1:5557")
 market_data_recv.setsockopt(zmq.SUBSCRIBE, b"AAPL")
-market_data_sub.setsockopt_string(zmq.SUBSCRIBE, "TSLA")
 
 def TestRegularRequest():
    
