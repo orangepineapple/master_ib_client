@@ -6,7 +6,7 @@ from ibapi.contract import Contract
 from time import sleep
 from decimal import Decimal
 
-from trading_util.alert_util import send_notif 
+from trading_util.alert_util import PushNotification 
 from ibapi.order import Order
 from datetime import datetime
 from zmq import SyncSocket
@@ -40,6 +40,8 @@ class OrderMaster(EWrapper, EClient):
         self.lock = Lock() 
         
         self.current_order_id = None
+
+        self.pn = PushNotification("Order Service Client")
         
         # ZMQ sockets to respond on
         self.order_socket = order_socket
@@ -160,7 +162,7 @@ class OrderMaster(EWrapper, EClient):
             if not self.failed_to_connect:
 
                 # UNEXPECTED RUNNING ERRORS ALSO HAPPEN HERE
-                send_notif("@everyone ORDER MASTER ERROR: " + errorString)
+                self.pn.send_notif("@everyone ORDER MASTER ERROR: " + errorString)
             with self.lock:     
                 self.failed_to_connect = True
         # contract not found
@@ -189,7 +191,7 @@ class OrderMaster(EWrapper, EClient):
         # Server Error
         elif errorCode == 321:
             if not self.server_error:
-                send_notif("@everyone server error:"+ errorString) 
+                self.pn.send_notif("@everyone server error:"+ errorString) 
             with self.lock:
                 self.server_error = True
         else:

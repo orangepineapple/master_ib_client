@@ -3,6 +3,7 @@ import zmq
 from ib.order_client import OrderMaster
 from trading_util.network import message_pb2 as msg
 from config.constants import HOST, CLIENT_NUM
+from time import sleep
 
 def start_order_service():
     print("ORDER SERVICE RUNNING")
@@ -11,10 +12,20 @@ def start_order_service():
     order_socket.bind("tcp://*:5555")
     order_socket.setsockopt(zmq.RCVTIMEO, 10000)
 
-    client = OrderMaster(HOST, 4002, CLIENT_NUM , order_socket)
+    while True:
+        client = OrderMaster(HOST, 4002, CLIENT_NUM , order_socket)
 
-    in_progress_orders = {} # if no one is subscribed anymore cancel this
-
+        # Clients are in charge of re-subscribing the next day
+        if not client.failed_to_connect:
+            break
+        else:
+            now = datetime.now().time()
+            if now > time(16, 0):
+                order_socket.close()
+                context.term()
+                return
+            sleep(10)
+   
     while True:
         now = datetime.now().time()
         if now > time(16, 0): # 4:00 PM

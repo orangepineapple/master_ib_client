@@ -7,7 +7,7 @@ from ibapi.wrapper import EWrapper
 from ibapi.contract import Contract
 from trading_util.network import message_pb2 as msg
 from datetime import time, datetime
-from trading_util.alert_util import send_notif 
+from trading_util.alert_util import PushNotification
 
 class DataMaster(EWrapper, EClient):
     def __init__(self, addr, port, client_id, mkt_data_socket : zmq.SyncSocket, subscription_socket : zmq.SyncSocket):
@@ -18,6 +18,7 @@ class DataMaster(EWrapper, EClient):
         self.connect(addr, port, client_id)
         
         self.lock = Lock() 
+        self.pn = PushNotification("Market Data Client")
         
         self.next_id = None
         
@@ -44,7 +45,7 @@ class DataMaster(EWrapper, EClient):
     def subscribe_to_market_data(self):
         while True:
             now = datetime.now().time()
-            if now > time(16, 0): # 4:00 PM
+            if now > time(16, 0) or self.failed_to_connect: # 4:00 PM
                 return
             try:
                 sender, empty, market_sub_binary = self.subscription_socket.recv_multipart()
@@ -104,7 +105,7 @@ class DataMaster(EWrapper, EClient):
         # client not connected error
         if errorCode == 504: 
             if not self.failed_to_connect:
-                send_notif("@everyone gateway is not connected, please restart manually")
+                self.pn.send_notif("@everyone gateway is not connected, please restart manually")
             with self.lock:     
                 self.failed_to_connect = True
         # Market Data might not be available to some of the sercurities
@@ -122,8 +123,8 @@ class DataMaster(EWrapper, EClient):
         # Server Error
         elif errorCode == 321:
             if not self.server_error:
-                send_notif("@everyone server error:"+ errorString) 
+                self.pn.send_notif("@everyone server error:"+ errorString) 
             with self.lock:
                 self.server_error = True
         else:
-            print(errorCode, errorString)      
+            self.pn.send_notif(str(errorCode) + errorString)
