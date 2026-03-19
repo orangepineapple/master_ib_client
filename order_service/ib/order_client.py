@@ -194,5 +194,7 @@ class OrderMaster(EWrapper, EClient):
                 self.pn.send_notif("@everyone server error:"+ errorString) 
             with self.lock:
                 self.server_error = True
-        else:
+        elif errorCode == 2104 or 2107 or 2158:
             print(errorCode, errorString)
+        else:
+            self.pn.send_notif(str(errorCode) + " " + errorString)
