@@ -4,11 +4,13 @@ from config.constants import HOST, CLIENT_NUM
 from ib.data_client import DataMaster
 from time import sleep 
 from datetime import time, datetime
+from trading_util.alert_util import PushNotification 
 
 
 def start_market_data_service():
-    print("MARKET DATA SERVICE RUNNING")
-
+    pn = PushNotification("MARKET DATA SERVICE")
+    pn.send_notif("Service Started")
+    
     context = zmq.Context()
     new_subscription_socket = context.socket(zmq.ROUTER)
     new_subscription_socket.bind("tcp://*:5556")

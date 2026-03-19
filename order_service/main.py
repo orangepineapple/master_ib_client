@@ -1,12 +1,14 @@
 from datetime import time, datetime
 import zmq
 from ib.order_client import OrderMaster
+from trading_util.alert_util import PushNotification  
 from trading_util.network import message_pb2 as msg
 from config.constants import HOST, CLIENT_NUM
 from time import sleep
 
 def start_order_service():
-    print("ORDER SERVICE RUNNING")
+    pn = PushNotification("ORDER SERVICE")
+    pn.send_notif("Order Service Started")
     context = zmq.Context()
     order_socket = context.socket(zmq.ROUTER)
     order_socket.bind("tcp://*:5555")
