@@ -51,6 +51,11 @@ def start_order_service():
 
             elif order_msg.order_type == msg.OrderType.STP:
                 client.adjust_stoploss(order_msg.order_id)
+            
+            elif order_msg.order_type == msg.OrderType.SPCL:
+                order_id = client.get_order_id()
+                resp = msg.Ticket(order_id)
+                order_socket.send_multipart([sender, b"", resp.SerializeToString()])
 
         except zmq.Again:
             # It just loops back up to check 'is_market_open' again

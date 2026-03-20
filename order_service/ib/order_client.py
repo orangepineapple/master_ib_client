@@ -26,8 +26,8 @@ class OrderInfo:
     # Basic fields with type hints
     sender : bytes 
     ticker: str
-    orderType : msg.OrderType.ValueType
-    orderSide : msg.OrderSide.ValueType
+    orderType : msg.OrderType
+    orderSide : msg.OrderSide
 
 class OrderMaster(EWrapper, EClient):
     def __init__(self, addr, port, client_id, order_socket : SyncSocket):
@@ -117,8 +117,24 @@ class OrderMaster(EWrapper, EClient):
         # Adjusts the stoploss of provided order id
         pass
 
+    def send_iron_condor(self, order_msg : msg.TradeOrder, sender : bytes):
 
-    ### BUILT IN CALLBACKS
+        pass
+
+    def get_order_id(self):
+        ## FOR MORE COMPLEX ORDERS/ OPTION ORDERS WE JUST HANDLE IT IN A SEPERAET IB INSTANCE
+        
+        # Check that Next Valid ID has finished execution until we start
+        while True: 
+            with self.lock:
+                if self.current_order_id is not None:
+                    break
+            sleep(0.5)
+        id_to_send = self.current_order_id
+        self.current_order_id += 1
+        return id_to_send
+
+    ### BUILT IN CALLBACKS ###
     def orderStatus(self, orderId: int, status: str, filled: Decimal, remaining: Decimal, avgFillPrice: float, permId: int, parentId: int, lastFillPrice: float, clientId: int, whyHeld: str, mktCapPrice: float):
         # when remaining is 0, then avgFillPrice contains the price we actaully finished the order add
         print(status)
