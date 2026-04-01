@@ -121,7 +121,7 @@ class OrderMaster(EWrapper, EClient):
 
         pass
 
-    def get_order_id(self):
+    def get_order_id_slice(self, num : int):
         ## FOR MORE COMPLEX ORDERS/ OPTION ORDERS WE JUST HANDLE IT IN A SEPERAET IB INSTANCE
         
         # Check that Next Valid ID has finished execution until we start
@@ -130,9 +130,10 @@ class OrderMaster(EWrapper, EClient):
                 if self.current_order_id is not None:
                     break
             sleep(0.5)
-        id_to_send = self.current_order_id
-        self.current_order_id += 1
-        return id_to_send
+        start_id = self.current_order_id
+        end_id = self.current_order_id + num - 1
+        self.current_order_id += num
+        return start_id, end_id
 
     ### BUILT IN CALLBACKS ###
     def orderStatus(self, orderId: int, status: str, filled: Decimal, remaining: Decimal, avgFillPrice: float, permId: int, parentId: int, lastFillPrice: float, clientId: int, whyHeld: str, mktCapPrice: float):
@@ -169,6 +170,7 @@ class OrderMaster(EWrapper, EClient):
         '''
         Gets the orderIds and places them into a list, list is cleared after orders are send
         '''
+        print("current order id", orderId)
         self.current_order_id = orderId  
     
     ### ERROR HANDLING ###

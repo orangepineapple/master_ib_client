@@ -8,7 +8,8 @@ from time import sleep
 
 def start_order_service():
     pn = PushNotification("ORDER SERVICE")
-    pn.send_notif("Order Service Started")
+    print("Order Service Started")
+    #pn.send_notif("Order Service Started")
     context = zmq.Context()
     order_socket = context.socket(zmq.ROUTER)
     order_socket.bind("tcp://*:5555")
@@ -38,7 +39,7 @@ def start_order_service():
             order_msg = msg.TradeOrder()
             order_msg.ParseFromString(order_binary)
 
-            if order_msg.order_type == msg.OrderType.MKT or msg.OrderType.LMT:
+            if order_msg.order_type in (msg.OrderType.MKT, msg.OrderType.LMT):
                 client.send_order_single_order(
                     order_msg,
                     sender
@@ -53,8 +54,12 @@ def start_order_service():
                 client.adjust_stoploss(order_msg.order_id)
             
             elif order_msg.order_type == msg.OrderType.SPCL:
-                order_id = client.get_order_id()
-                resp = msg.Ticket(order_id)
+                start_id, end_id = client.get_order_id_slice(int(order_msg.qty))
+                print("MAIN",start_id, end_id)
+                resp = msg.Ticket(
+                    order_id_start=start_id,
+                    order_id_end = end_id
+                )
                 order_socket.send_multipart([sender, b"", resp.SerializeToString()])
 
         except zmq.Again:
