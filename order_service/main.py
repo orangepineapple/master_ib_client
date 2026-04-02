@@ -14,21 +14,32 @@ def start_order_service():
     order_socket = context.socket(zmq.ROUTER)
     order_socket.bind("tcp://*:5555")
     order_socket.setsockopt(zmq.RCVTIMEO, 10000)
+    alerted = False
+    client = OrderMaster(HOST, 4002, CLIENT_NUM , order_socket)
 
+    # Try to connect to gateway
     while True:
-        client = OrderMaster(HOST, 4002, CLIENT_NUM , order_socket)
-
-        # Clients are in charge of re-subscribing the next day
         if not client.failed_to_connect:
             break
         else:
+            if not alerted:
+                pn.send_notif(f"@everyone Not Connected, attemping Reconnecting")
+                alerted = True
             now = datetime.now().time()
             if now > time(16, 0):
                 order_socket.close()
                 context.term()
                 return
-            sleep(10)
-   
+            
+            sleep(5)
+            client.retry_connection()
+
+    if alerted:
+        pn.send_notif(f"@everyone Reconnected")
+    
+    # Start the Service after connection is confirmed
+    client.launch()
+
     while True:
         now = datetime.now().time()
         if now > time(16, 0): # 4:00 PM
@@ -69,3 +80,5 @@ def start_order_service():
     client.disconnect()
     order_socket.close()
     context.term()
+
+start_order_service()
