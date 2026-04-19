@@ -1,3 +1,4 @@
+from ibapi.common import TickerId
 import zmq
 from threading import Lock
 from threading import Thread
@@ -101,7 +102,7 @@ class DataMaster(EWrapper, EClient):
             self.mkt_data_socket.send_multipart([tick.ticker.encode('utf-8'), tick.SerializeToString()])
             #print("SENT")
 
-    def error(self, reqId: int, errorCode: int, errorString: str, advancedOrderRejectJson=""):
+    def error(self, reqId: int, errorTime: int, errorCode: int, errorString: str, advancedOrderRejectJson=""):
         # client not connected error
         if errorCode == 504: 
             if not self.failed_to_connect:

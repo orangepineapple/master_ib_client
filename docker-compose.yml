@@ -20,6 +20,17 @@ services:
     network_mode: host
     environment:
         TZ : America/New_York  # Set the timezone
+        
+  scanner_master:
+    container_name: scanner_master
+    build:
+        context:  ./scanner_service
+        dockerfile: Dockerfile
+        secrets:
+          - gh_token
+    network_mode: host
+    environment:
+        TZ : America/New_York  # Set the timezone
 
 secrets:
   gh_token:
