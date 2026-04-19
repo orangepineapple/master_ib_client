@@ -20,6 +20,8 @@ class MarketScreener(EWrapper, EClient):
         self.done = False
         self.no_results = True
 
+        self.scanner_id = 1
+
         # Launch the client thread
         thread = Thread(target=self.run)
         thread.start()
@@ -50,8 +52,30 @@ class MarketScreener(EWrapper, EClient):
 
         return self.data
 
-    def scanner_subscription(self, marketCapMax, marketCapMin, scanCode = "TOP_PERC_GAIN"):
-        pass
+    def scanner_subscription(self, price_range : tuple[int,int], scanCode = "TOP_PERC_GAIN"):
+        my_filter = ScannerSubscription()
+        my_filter.numberOfRows = 50
+        my_filter.abovePrice = price_range[0]
+        my_filter.belowPrice = price_range[1]
+        my_filter.scanCode = scanCode
+
+        id = self.get_req_id()
+        self.reqScannerSubscription(id , my_filter, [], [])
+
+        # Price betweens
+        # 1. Calculate RVOL look for RVOL >= 5
+
+        # 2. Price range between 1 and 20 dollars
+
+        # 2. Check for a move of > 4%
+
+        # 3. Low float shares < 10 million
+        return id
+    
+    def get_req_id(self):
+        req_id = self.scanner_id
+        self.scanner_id += 1
+        return req_id
 
     ### CALLBACKS BELOW ###
     def scannerData(self, reqId: int, rank: int, contractDetails: ContractDetails, distance: str, benchmark: str, projection: str, legsStr: str):
