@@ -26,18 +26,26 @@ class OrderInfo:
     # Basic fields with type hints
     sender : bytes 
     ticker: str
-    orderType : msg.OrderType.ValueType
-    orderSide : msg.OrderSide.ValueType
+    orderType : msg.OrderType
+    orderSide : msg.OrderSide
 
 class OrderMaster(EWrapper, EClient):
     def __init__(self, addr, port, client_id, order_socket : SyncSocket):
         EWrapper.__init__(self)
         EClient. __init__(self, self)
-        
-        # Connect to TWS
-        self.connect(addr, port, client_id)
-        
+
+        self.myaddr = addr
+        self.myport = port
+        self.myclient_id = client_id
+
+        # Utility + Connectivity (Shared via Threads)
+        self.failed_to_connect = False
+        self.server_error = False
+        self.ticker_unavailable = set()
+
         self.lock = Lock() 
+
+        self.connect(addr, port, client_id)
         
         self.current_order_id = None
 
@@ -46,17 +54,21 @@ class OrderMaster(EWrapper, EClient):
         # ZMQ sockets to respond on
         self.order_socket = order_socket
 
-        # Utility + Connectivity (Shared via Threads)
-        self.failed_to_connect = False
-        self.server_error = False
-        self.ticker_unavailable = set()
-
         # Data Collection
         self.snapshot_data = {} # not shared
         self.data_arrived = []
 
         # Order Placement (Shared via Threads)
         self.order_information : dict[int, OrderInfo] = {}
+
+        sleep(0.5)
+
+    def retry_connection(self):
+        self.failed_to_connect = False
+        self.connect(self.myaddr, self.myport, self.myclient_id)
+        sleep(0.5)
+
+    def launch(self):
 
         # Launch the client thread
         thread = Thread(target=self.run)
@@ -65,7 +77,6 @@ class OrderMaster(EWrapper, EClient):
 
         # Get Next Valid ID on startup
         self.reqIds(1)
-
 
     def send_order_single_order(self, order_msg : msg.TradeOrder, sender : bytes):
         '''
@@ -117,8 +128,25 @@ class OrderMaster(EWrapper, EClient):
         # Adjusts the stoploss of provided order id
         pass
 
+    def send_iron_condor(self, order_msg : msg.TradeOrder, sender : bytes):
 
-    ### BUILT IN CALLBACKS
+        pass
+
+    def get_order_id_slice(self, num : int):
+        ## FOR MORE COMPLEX ORDERS/ OPTION ORDERS WE JUST HANDLE IT IN A SEPERAET IB INSTANCE
+        
+        # Check that Next Valid ID has finished execution until we start
+        while True: 
+            with self.lock:
+                if self.current_order_id is not None:
+                    break
+            sleep(0.5)
+        start_id = self.current_order_id
+        end_id = self.current_order_id + num - 1
+        self.current_order_id += num
+        return start_id, end_id
+
+    ### BUILT IN CALLBACKS ###
     def orderStatus(self, orderId: int, status: str, filled: Decimal, remaining: Decimal, avgFillPrice: float, permId: int, parentId: int, lastFillPrice: float, clientId: int, whyHeld: str, mktCapPrice: float):
         # when remaining is 0, then avgFillPrice contains the price we actaully finished the order add
         print(status)
@@ -153,18 +181,18 @@ class OrderMaster(EWrapper, EClient):
         '''
         Gets the orderIds and places them into a list, list is cleared after orders are send
         '''
+        print("current order id", orderId)
         self.current_order_id = orderId  
     
     ### ERROR HANDLING ###
     def error(self, reqId: int, errorCode: int, errorString: str, advancedOrderRejectJson=""):
         # client not connected error
-        if errorCode == 504: 
+        if errorCode == 504 or errorCode == 502: 
             if not self.failed_to_connect:
-
                 # UNEXPECTED RUNNING ERRORS ALSO HAPPEN HERE
-                self.pn.send_notif("@everyone ORDER MASTER ERROR: " + errorString)
-            with self.lock:     
-                self.failed_to_connect = True
+                # self.pn.send_notif("@everyone ORDER MASTER ERROR: " + errorString)
+                with self.lock:     
+                    self.failed_to_connect = True
         # contract not found
         elif errorCode == 201: 
             # Order Rejected
@@ -194,5 +222,7 @@ class OrderMaster(EWrapper, EClient):
                 self.pn.send_notif("@everyone server error:"+ errorString) 
             with self.lock:
                 self.server_error = True
-        else:
+        elif errorCode in (2104, 2107, 2158):
             print(errorCode, errorString)
+        else:
+            self.pn.send_notif(str(errorCode) + " " + errorString)

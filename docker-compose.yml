@@ -9,7 +9,6 @@ services:
     network_mode: host
     environment:
         TZ : America/New_York  # Set the timezone
-        
   market_data_master:
     container_name: mkt_data_master
     build:
